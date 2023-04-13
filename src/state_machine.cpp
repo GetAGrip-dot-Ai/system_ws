@@ -1,11 +1,11 @@
-#include "state_machine.h"
+#include "../include/state_machine.h"
 
 PeterStateMachine::PeterStateMachine(){
     // create all the clients, pubs, subs
     this->manipulation_client = this->PeterNode.serviceClient<system_ws::harvest>("/manipulation/harvest");
     this->perception_client = this->PeterNode.serviceClient<system_ws::harvest>("/perception/harvest");
-    this->ee_client_pub = this->PeterNode.advertise<std_msgs::Int8>("/end_effector/harvest_req", 1);
-    this->ee_client_sub = PeterNode.subscribe("/end_effector/harvest_rsp", 1, &PeterStateMachine::endEffectorCallback, this);
+    this->ee_client_pub = this->PeterNode.advertise<std_msgs::Int16>("/end_effector/harvest_req", 1);
+    this->ee_client_sub = PeterNode.subscribe("/end_effector/harvest_rsp", 10, &PeterStateMachine::endEffectorCallback, this);
 
     //create the timer that will check the state
     this->state_checker = this->PeterNode.createTimer(ros::Duration(this->checker_time), &PeterStateMachine::stateCheckerCallback, this);
@@ -235,13 +235,18 @@ void PeterStateMachine::stateCheckerCallback(const ros::TimerEvent& event){
 
                 // havent received a response yet
                 this->ee_response = -1;
-                
-                this->harvest_req.data = stateToInt(State::OPEN_END_EFFECTOR);
-                do{
-                    ee_client_pub.publish(this->harvest_req);
-                }
-                while(this->ee_response== -1);
 
+                this->harvest_req.data = stateToInt(State::OPEN_END_EFFECTOR);
+
+                do{
+                    this->ee_client_pub.publish(this->harvest_req);
+                    ros::spinOnce(); //! MAY BE A TERRIBLE IDEA
+                    ros::Duration(0.5).sleep();
+                    ROS_INFO_STREAM(this->ee_response);
+                }
+                while(this->ee_response == -1);
+                                
+                // process the response
                 if(this->ee_response == 1){
                     ROS_INFO_STREAM(this->ee_response);
                     ROS_INFO("Transition to move 2 poi");
@@ -250,13 +255,8 @@ void PeterStateMachine::stateCheckerCallback(const ros::TimerEvent& event){
                 else{
                     ROS_ERROR("Transition to manual intervention");
                     this->next_state = State::MANUAL_INTERVENTION;
-                }     
-                // else{
-                //     ROS_INFO("No reponse received.");
-                //     this->next_state = State::MANUAL_INTERVENTION;
-                //     printTransition(this->current_state, this->next_state, true);
-                // }
-                
+                }
+                                
                 break;
             }
 
@@ -291,8 +291,11 @@ void PeterStateMachine::stateCheckerCallback(const ros::TimerEvent& event){
                 this->harvest_req.data = stateToInt(State::EXTRACT_PEPPER);
                 do{
                     ee_client_pub.publish(this->harvest_req);
+                    ros::spinOnce();
+                    ros::Duration(0.5).sleep();
+                    ROS_INFO_STREAM(this->ee_response);
                 }
-                while(this->ee_response== -1);
+                while(this->ee_response == -1);
 
                 if(this->ee_response == 1){
                     ROS_INFO_STREAM(this->ee_response);
@@ -302,8 +305,8 @@ void PeterStateMachine::stateCheckerCallback(const ros::TimerEvent& event){
                 else{
                     ROS_ERROR("Transition to manual intervention");
                     this->next_state = State::MANUAL_INTERVENTION;
-                }     
-                
+                }
+
                 break;
             }
 
@@ -338,8 +341,11 @@ void PeterStateMachine::stateCheckerCallback(const ros::TimerEvent& event){
                 this->harvest_req.data = stateToInt(State::OPEN_GRIPPER_CLOSE_EE);
                 do{
                     ee_client_pub.publish(this->harvest_req);
+                    ros::spinOnce(); //! may be a terrible idea!!!!!!
+                    ros::Duration(0.5).sleep();
+                    ROS_INFO_STREAM(this->ee_response);
                 }
-                while(this->ee_response== -1);
+                while(this->ee_response == -1);
 
                 if(this->ee_response == 1){
                     ROS_INFO_STREAM(this->ee_response);
@@ -347,7 +353,7 @@ void PeterStateMachine::stateCheckerCallback(const ros::TimerEvent& event){
                     this->next_state = State::MOVE_2_POI;
                 }
                 else{
-                    ROS_INFO("Transition to manual intervention");
+                    ROS_ERROR("Transition to manual intervention");
                     this->next_state = State::MANUAL_INTERVENTION;
                 }
                 break;
@@ -414,9 +420,9 @@ void PeterStateMachine::printTransition(State current_state, State next_state){
 
 
 
-void PeterStateMachine::endEffectorCallback(const std_msgs::Int8& rsp){
+void PeterStateMachine::endEffectorCallback(const std_msgs::Int16& rsp){
 
-    this->ee_response = rsp.data;   
+    this->ee_response = rsp.data;  
 }
 
 void PeterStateMachine::run(){
