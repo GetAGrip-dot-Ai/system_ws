@@ -7,7 +7,7 @@ from std_msgs.msg import Int16
 import random
 
 class Nodo:
-
+    """node that sends all positive results to test the state machine"""
     def __init__(self):
         # Params
         # Node cycle rate (in Hz).
@@ -31,6 +31,6 @@ class Nodo:
             self.loop_rate.sleep()
 
 if __name__ == '__main__':
-    rospy.init_node("camera_img")
+    rospy.init_node("tester_node")
     my_node = Nodo()
     my_node.start()
