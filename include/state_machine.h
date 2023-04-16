@@ -3,6 +3,7 @@
 #include <string>
 #include "system_ws/harvest.h"
 #include "std_msgs/Int16.h"
+#include <vector>
 
 enum State{
     MOVE_2_RESET_POSE, // state 0
@@ -16,7 +17,9 @@ enum State{
     OPEN_GRIPPER_CLOSE_EE, // state 8
     MANUAL_INTERVENTION, // state 9
     VISUAL_SERVOING, // state 10
-    END_STATE // state 11
+    FACTORY_RESET_MOTORS, // state 11
+    SYSTEM_RESET_CHECK_MOTORS, // state 12
+    END_STATE // state 13
    };
 
 
@@ -70,4 +73,15 @@ class PeterStateMachine {
         void  printTransitionSuccess(State current_state, State next_state);
         void  printTransitionFailure(State current_state, State next_state);
         void printTransition(State current_state, State next_state);
+
+        // checks if the motors are running by closing them above the basket
+        // (they should be closed at this point)
+        int checkMotors();
+
+        // factory resets the motors autonomously 
+        int factory_reset_motors();
+
+        // resets the arm and camera by killing the nodes and relaunching them
+        void resetArmNCamera();
+        
 };

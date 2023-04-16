@@ -461,18 +461,17 @@ this->ee_response = rsp.data;
 
 void PeterStateMachine::resetArmNCamera(){
 
-    int num_nodes = 6;
-    const string nodes[num_nodes] = {
-        'camera_node',
-        '/my_gen3/joint_state_publisher',
-        '/my_gen3/move_group',
-        '/my_gen3/my_gen3_driver',
-        '/my_gen3/robot_state_publisher',
-        '/my_gen3/rviz/'
+    std::vector<std::string> nodes = {
+        "camera_node",
+        "/my_gen3/joint_state_publisher",
+        "/my_gen3/move_group",
+        "/my_gen3/my_gen3_driver",
+        "/my_gen3/robot_state_publisher",
+        "/my_gen3/rviz/"
     };
     
     // kill all the nodes in the list
-    for(int i = 0; i<num_nodes; i++){
+    for(int i = 0; i < nodes.size(); i++){
         ROS_INFO_STREAM("Killing " + nodes[i] + "node...");
         std::string command = "rosnode kill" + nodes[i];
         system(command.c_str());
@@ -493,11 +492,10 @@ int PeterStateMachine::checkMotors(){
     // confirms if both motors are operational- assume yes
     int operational = 1;
 
-    // try to make the gripper close
-    int close_grip_req = 24; // 24 closes the gripper
-    int close_cut_req = 25; // 25 closes the cutter
+    // ================== try to make the gripper close=============== 
+    this->harvest_req.data = 24; // 24 closes the gripper
 
-    this->ee_client_pub.publish(close_grip_req);
+    this->ee_client_pub.publish(this->harvest_req);
     ros::Duration(0.25).sleep();
     ros::spinOnce(); //! MAY BE A TERRIBLE IDEA
                     
@@ -506,11 +504,17 @@ int PeterStateMachine::checkMotors(){
         // if the response is not 1 (success) we need to return not operational
         operational = 0;
     }
+
+     // ================== try to make the gripper close=============== 
+
+    // ================== try to make the cutter close=============== 
 
     // change the ee_response again for the new message
     this->ee_response = -1;
 
-    this->ee_client_pub.publish(close_cut_req);
+    this->harvest_req.data = 25; // 25 closes the cutter
+
+    this->ee_client_pub.publish(this->harvest_req);
     ros::Duration(0.25).sleep();
     ros::spinOnce(); //! MAY BE A TERRIBLE IDEA
                     
@@ -519,6 +523,8 @@ int PeterStateMachine::checkMotors(){
         // if the response is not 1 (success) we need to return not operational
         operational = 0;
     }
+
+    // ================== try to make the cutter close=============== 
 
     return operational;
 }
@@ -532,9 +538,9 @@ int PeterStateMachine::factory_reset_motors(){
     this->ee_response = -1;
 
     // factory reset is command is 20 
-    int factory_reset_req = 20;
+    this->harvest_req.data = 20;
 
-    this->ee_client_pub.publish(factory_reset_req);
+    this->ee_client_pub.publish(this->harvest_req);
     ros::Duration(0.25).sleep();
     ros::spinOnce(); //! MAY BE A TERRIBLE IDEA
                     
