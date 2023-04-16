@@ -169,7 +169,8 @@ void PeterStateMachine::stateCheckerCallback(const ros::TimerEvent& event){
             case State::OPEN_END_EFFECTOR:{
                
                 // havent received a response yet
-                this->ee_response = -1;
+                // this->ee_response = -1;
+                this->ee_response = 1;
                 this->harvest_req.data = stateToInt(State::OPEN_END_EFFECTOR);
 
                 // do{
@@ -237,7 +238,6 @@ void PeterStateMachine::stateCheckerCallback(const ros::TimerEvent& event){
                 break;
             }
 
-            
             case State::MOVE_2_POI:{
                 
                 harvest_srv.request.req_id = stateToInt(State::MOVE_2_POI);
@@ -276,7 +276,8 @@ void PeterStateMachine::stateCheckerCallback(const ros::TimerEvent& event){
             case State::EXTRACT_PEPPER:{
                 
                 // havent received a response yet
-                this->ee_response = -1;
+                // this->ee_response = -1;
+                this->ee_response = 1;
                 this->harvest_req.data = stateToInt(State::EXTRACT_PEPPER);
 
                 // do{
@@ -343,7 +344,8 @@ void PeterStateMachine::stateCheckerCallback(const ros::TimerEvent& event){
 
             case State::OPEN_GRIPPER_CLOSE_EE:{
                 // havent received a response yet
-                this->ee_response = -1;
+                // this->ee_response = -1;
+                this->ee_response = 1;
                 this->harvest_req.data = stateToInt(State::OPEN_GRIPPER_CLOSE_EE);
 
                 // do{
@@ -411,6 +413,7 @@ void PeterStateMachine::printTransitionSuccess(State current_state, State next_s
 
 }
 
+
 void PeterStateMachine::printTransitionFailure(State current_state, State next_state){
 
     // print the starting state and the next state
@@ -427,11 +430,11 @@ void PeterStateMachine::printTransition(State current_state, State next_state){
 }
 
 
-
 void PeterStateMachine::endEffectorCallback(const std_msgs::Int16& rsp){
 
     this->ee_response = rsp.data;  
 }
+
 
 void PeterStateMachine::run(){
 
@@ -443,6 +446,7 @@ void PeterStateMachine::run(){
     }
 
 }
+
 
 std::string PeterStateMachine::stateToString(State state){
 
@@ -474,4 +478,3 @@ std::string PeterStateMachine::stateToString(State state){
     }
 
 }
-
