@@ -103,7 +103,7 @@ void PeterStateMachine::stateCheckerCallback(const ros::TimerEvent& event){
 
                 harvest_srv.request.req_id = stateToInt(State::MULTIFRAME);
                 
-                if(perception_client.call(harvest_srv)){
+                if(manipulation_client.call(harvest_srv)){
 
                     // you got a response
                     ROS_INFO("Received Response From: %s", stateToString(State::MULTIFRAME).c_str());
@@ -172,12 +172,16 @@ void PeterStateMachine::stateCheckerCallback(const ros::TimerEvent& event){
                 this->ee_response = -1;
                 this->harvest_req.data = stateToInt(State::OPEN_END_EFFECTOR);
 
-                do{
-                    this->ee_client_pub.publish(this->harvest_req);
-                    ros::spinOnce(); //! MAY BE A TERRIBLE IDEA
-                    ros::Duration(0.1).sleep();
-                }
-                while(this->ee_response == -1);
+                // do{
+                //     this->ee_client_pub.publish(this->harvest_req);
+                //     ros::spinOnce(); //! MAY BE A TERRIBLE IDEA
+                //     ros::Duration(0.1).sleep();
+                // }
+                // while(this->ee_response == -1);
+
+                this->ee_client_pub.publish(this->harvest_req);
+                ros::Duration(0.25).sleep();
+                ros::spinOnce(); //! MAY BE A TERRIBLE IDEA
                                 
                 // process the response
                 if(this->ee_response){
@@ -200,11 +204,14 @@ void PeterStateMachine::stateCheckerCallback(const ros::TimerEvent& event){
 
                 harvest_srv.request.req_id = stateToInt(State::VISUAL_SERVOING);
                 
-                if(perception_client.call(harvest_srv)){
+                if(manipulation_client.call(harvest_srv)){
 
                     // you got a response
                     ROS_INFO("Received Response From: %s", stateToString(State::VISUAL_SERVOING).c_str());
                     int success = harvest_srv.response.reply;
+
+                    //! CHANGE THIS -> THIS IS TO SKIP VISUAL SERVOING AND GO TO POI
+                    success = 0;
                     
                     if(success){
                         // if the response was good, you can extract the pepper
@@ -245,7 +252,7 @@ void PeterStateMachine::stateCheckerCallback(const ros::TimerEvent& event){
                         // if the response was good, extract the pepper
                         printTransitionSuccess(this->current_state, this->next_state);
                         this->current_state = State::MOVE_2_POI;
-                        this->next_state = State::OPEN_END_EFFECTOR;
+                        this->next_state = State::EXTRACT_PEPPER;
                     }
                     else{
                         // if it failed, you never moved to the poi and need to move
@@ -272,12 +279,17 @@ void PeterStateMachine::stateCheckerCallback(const ros::TimerEvent& event){
                 this->ee_response = -1;
                 this->harvest_req.data = stateToInt(State::EXTRACT_PEPPER);
 
-                do{
-                    this->ee_client_pub.publish(this->harvest_req);
-                    ros::spinOnce(); //! MAY BE A TERRIBLE IDEA
-                    ros::Duration(0.1).sleep();
-                }
-                while(this->ee_response == -1);
+                // do{
+                //     this->ee_client_pub.publish(this->harvest_req);
+                //     ros::spinOnce(); //! MAY BE A TERRIBLE IDEA
+                //     ros::Duration(0.1).sleep();
+                // }
+                // while(this->ee_response == -1);
+
+                
+                this->ee_client_pub.publish(this->harvest_req);
+                ros::Duration(0.25).sleep();
+                ros::spinOnce(); //! MAY BE A TERRIBLE IDEA
                                 
                 // process the response
                 if(this->ee_response){
@@ -334,12 +346,16 @@ void PeterStateMachine::stateCheckerCallback(const ros::TimerEvent& event){
                 this->ee_response = -1;
                 this->harvest_req.data = stateToInt(State::OPEN_GRIPPER_CLOSE_EE);
 
-                do{
-                    this->ee_client_pub.publish(this->harvest_req);
-                    ros::spinOnce(); //! MAY BE A TERRIBLE IDEA
-                    ros::Duration(0.1).sleep();
-                }
-                while(this->ee_response == -1);
+                // do{
+                //     this->ee_client_pub.publish(this->harvest_req);
+                //     ros::spinOnce(); //! MAY BE A TERRIBLE IDEA
+                //     ros::Duration(0.1).sleep();
+                // }
+                // while(this->ee_response == -1);
+
+                this->ee_client_pub.publish(this->harvest_req);
+                ros::Duration(0.25).sleep();
+                ros::spinOnce(); //! MAY BE A TERRIBLE IDEA
                                 
                 // process the response
                 if(this->ee_response){
