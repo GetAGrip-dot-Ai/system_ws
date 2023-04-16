@@ -173,13 +173,6 @@ void PeterStateMachine::stateCheckerCallback(const ros::TimerEvent& event){
                 this->ee_response = 1;
                 this->harvest_req.data = stateToInt(State::OPEN_END_EFFECTOR);
 
-                // do{
-                //     this->ee_client_pub.publish(this->harvest_req);
-                //     ros::spinOnce(); //! MAY BE A TERRIBLE IDEA
-                //     ros::Duration(0.1).sleep();
-                // }
-                // while(this->ee_response == -1);
-
                 this->ee_client_pub.publish(this->harvest_req);
                 ros::Duration(0.25).sleep();
                 ros::spinOnce(); //! MAY BE A TERRIBLE IDEA
@@ -194,8 +187,9 @@ void PeterStateMachine::stateCheckerCallback(const ros::TimerEvent& event){
                 else{
                     // if you didn't get an answer you need manual intervention
                     printTransitionFailure(this->current_state, this->next_state);
-                    ROS_ERROR("Transition to manual intervention");
-                    this->next_state = State::MANUAL_INTERVENTION;
+                    ROS_ERROR("Motors not working...attempt to factory reset motors");
+                    this->current_state = State::OPEN_END_EFFECTOR;
+                    this->next_state = State::FACTORY_RESET_MOTORS;
                 }
                                 
                 break;
@@ -279,15 +273,7 @@ void PeterStateMachine::stateCheckerCallback(const ros::TimerEvent& event){
                 // this->ee_response = -1;
                 this->ee_response = 1;
                 this->harvest_req.data = stateToInt(State::EXTRACT_PEPPER);
-
-                // do{
-                //     this->ee_client_pub.publish(this->harvest_req);
-                //     ros::spinOnce(); //! MAY BE A TERRIBLE IDEA
-                //     ros::Duration(0.1).sleep();
-                // }
-                // while(this->ee_response == -1);
-
-                
+              
                 this->ee_client_pub.publish(this->harvest_req);
                 ros::Duration(0.25).sleep();
                 ros::spinOnce(); //! MAY BE A TERRIBLE IDEA
@@ -298,12 +284,17 @@ void PeterStateMachine::stateCheckerCallback(const ros::TimerEvent& event){
                     printTransitionSuccess(this->current_state, this->next_state);
                     this->current_state = State::EXTRACT_PEPPER;
                     this->next_state = State::MOVE_2_BASKET_REMOVE_OBS;
+
+                    // Need to add a delay so the cutter can finish cutting
+                    // moving to basket
+                    ros::Duration(3).sleep();
                 }
                 else{
                     // if you didn't get an answer you need manual intervention
                     printTransitionFailure(this->current_state, this->next_state);
-                    ROS_ERROR("Transition to manual intervention");
-                    this->next_state = State::MANUAL_INTERVENTION;
+                    ROS_ERROR("Motors not working...attempt to factory reset motors");
+                    this->current_state = State::EXTRACT_PEPPER;
+                    this->next_state = State::FACTORY_RESET_MOTORS;
                 }
                                 
                 break;
@@ -348,13 +339,6 @@ void PeterStateMachine::stateCheckerCallback(const ros::TimerEvent& event){
                 this->ee_response = 1;
                 this->harvest_req.data = stateToInt(State::OPEN_GRIPPER_CLOSE_EE);
 
-                // do{
-                //     this->ee_client_pub.publish(this->harvest_req);
-                //     ros::spinOnce(); //! MAY BE A TERRIBLE IDEA
-                //     ros::Duration(0.1).sleep();
-                // }
-                // while(this->ee_response == -1);
-
                 this->ee_client_pub.publish(this->harvest_req);
                 ros::Duration(0.25).sleep();
                 ros::spinOnce(); //! MAY BE A TERRIBLE IDEA
@@ -369,12 +353,51 @@ void PeterStateMachine::stateCheckerCallback(const ros::TimerEvent& event){
                 else{
                     // if you didn't get an answer you need manual intervention
                     printTransitionFailure(this->current_state, this->next_state);
-                    ROS_ERROR("Transition to manual intervention");
-                    this->next_state = State::MANUAL_INTERVENTION;
+                    ROS_ERROR("Motors not working...attempt to factory reset motors");
+                    this->current_state = State::OPEN_GRIPPER_CLOSE_EE;
+                    this->next_state = State::FACTORY_RESET_MOTORS;
                 }
                                 
                 break;
             }
+
+            case State::SYSTEM_RESET_CHECK_MOTORS:{
+                
+                // kill the nodes and relaunch them
+                resetArmNCamera();
+
+                // see if the motors are working by closing them when they should be closed
+                int motors_working = checkMotors();
+
+                if(!motors_working){
+                    ROS_ERROR("Motors not working during reset...attemping to reset...");
+                    this->next_state = State::FACTORY_RESET_MOTORS;
+                }     
+            }
+
+            case State::FACTORY_RESET_MOTORS:{
+
+                if(!factory_reset_motors()){
+                    ROS_ERROR("Factory reset failed...need manual intervention");
+                    this->next_state = State::MANUAL_INTERVENTION;
+                    this->current_state == State::FACTORY_RESET_MOTORS;
+                }
+                else{
+                    // if we came from resetting the motors we need to go back to approaching the plant positions
+                    if(this->current_state == State::SYSTEM_RESET_CHECK_MOTORS){
+                        ROS_INFO("The motors have been reset at system reset, approaching plant positions");
+                        this->next_state == State::APPROACH_PLANT_POSITIONS;
+                    }
+                    else{
+                        // if not we need to go back to the last state
+                        ROS_INFO("The motors have been reset, returning to last state");
+                        this->next_state == this->current_state;
+                        this->current_state == State::FACTORY_RESET_MOTORS;
+                    }
+
+                }
+
+            }         
 
             case State::MANUAL_INTERVENTION:{
                ROS_ERROR("MANUAL INTERVENTION REQUIRED: KILLING NODE");
@@ -417,22 +440,112 @@ void PeterStateMachine::printTransitionSuccess(State current_state, State next_s
 void PeterStateMachine::printTransitionFailure(State current_state, State next_state){
 
     // print the starting state and the next state
-    ROS_ERROR("Failed transition from %s to %s", stateToString(current_state).c_str(), stateToString(next_state).c_str());
+ROS_ERROR("Failed transition from %s to %s", stateToString(current_state).c_str(), stateToString(next_state).c_str());
 }
 
 
 void PeterStateMachine::printTransition(State current_state, State next_state){
 
-    // print the starting state and the next state
-    ROS_INFO("Started in: %s", stateToString(current_state).c_str());
-    ROS_INFO("Transitioning to: %s", stateToString(next_state).c_str());
+// print the starting state and the next state
+ROS_INFO("Started in: %s", stateToString(current_state).c_str());
+ROS_INFO("Transitioning to: %s", stateToString(next_state).c_str());
 
 }
 
 
 void PeterStateMachine::endEffectorCallback(const std_msgs::Int16& rsp){
 
-    this->ee_response = rsp.data;  
+this->ee_response = rsp.data;  
+
+}
+
+void PeterStateMachine::resetArmNCamera(){
+
+    int num_nodes = 6;
+    const string nodes[num_nodes] = {
+        'camera_node',
+        '/my_gen3/joint_state_publisher',
+        '/my_gen3/move_group',
+        '/my_gen3/my_gen3_driver',
+        '/my_gen3/robot_state_publisher',
+        '/my_gen3/rviz/'
+    };
+    
+    // kill all the nodes in the list
+    for(int i = 0; i<num_nodes; i++){
+        ROS_INFO_STREAM("Killing " + nodes[i] + "node...");
+        std::string command = "rosnode kill" + nodes[i];
+        system(command.c_str());
+    }
+
+    // launch it again
+    ROS_INFO("Launching: pepper_ws kinova_real.launch ");
+    std::string command = "roslaunch pepper_ws kinova_real.launch";
+    system(command.c_str());
+
+}
+
+int PeterStateMachine::checkMotors(){
+
+    // no response from the end_effector yet
+    this->ee_response = -1;
+
+    // confirms if both motors are operational- assume yes
+    int operational = 1;
+
+    // try to make the gripper close
+    int close_grip_req = 24; // 24 closes the gripper
+    int close_cut_req = 25; // 25 closes the cutter
+
+    this->ee_client_pub.publish(close_grip_req);
+    ros::Duration(0.25).sleep();
+    ros::spinOnce(); //! MAY BE A TERRIBLE IDEA
+                    
+    // process the response
+    if(!this->ee_response){
+        // if the response is not 1 (success) we need to return not operational
+        operational = 0;
+    }
+
+    // change the ee_response again for the new message
+    this->ee_response = -1;
+
+    this->ee_client_pub.publish(close_cut_req);
+    ros::Duration(0.25).sleep();
+    ros::spinOnce(); //! MAY BE A TERRIBLE IDEA
+                    
+    // process the response
+    if(!this->ee_response){
+        // if the response is not 1 (success) we need to return not operational
+        operational = 0;
+    }
+
+    return operational;
+}
+
+int PeterStateMachine::factory_reset_motors(){
+
+    // assume the reset is successful
+    int success = 1;
+
+    // change the ee_response again for the new message
+    this->ee_response = -1;
+
+    // factory reset is command is 20 
+    int factory_reset_req = 20;
+
+    this->ee_client_pub.publish(factory_reset_req);
+    ros::Duration(0.25).sleep();
+    ros::spinOnce(); //! MAY BE A TERRIBLE IDEA
+                    
+    // process the response
+    if(!this->ee_response){
+        // if the response is not 1 (success) we need to return not a failed factory reset
+        success = 0;
+    }
+
+    return success;
+
 }
 
 
@@ -473,6 +586,10 @@ std::string PeterStateMachine::stateToString(State state){
             return "Manual Intervention";
         case State::VISUAL_SERVOING:
             return "Visual Servoing";
+        case State::SYSTEM_RESET_CHECK_MOTORS:
+            return "Resetting the Arm & Checking Motor Operation";
+        case State::FACTORY_RESET_MOTORS:
+            return "Factory Reset Motors";
         default:
             return "FAILED";
     }
