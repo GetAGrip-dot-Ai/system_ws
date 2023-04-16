@@ -18,8 +18,7 @@ enum State{
     MANUAL_INTERVENTION, // state 9
     VISUAL_SERVOING, // state 10
     FACTORY_RESET_MOTORS, // state 11
-    SYSTEM_RESET_CHECK_MOTORS, // state 12
-    END_STATE // state 13
+    END_STATE // state 12
    };
 
 
@@ -74,14 +73,8 @@ class PeterStateMachine {
         void  printTransitionFailure(State current_state, State next_state);
         void printTransition(State current_state, State next_state);
 
-        // checks if the motors are running by closing them above the basket
-        // (they should be closed at this point)
-        int checkMotors();
-
         // factory resets the motors autonomously 
         int factory_reset_motors();
 
-        // resets the arm and camera by killing the nodes and relaunching them
-        void resetArmNCamera();
-        
+                
 };

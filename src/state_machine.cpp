@@ -169,8 +169,7 @@ void PeterStateMachine::stateCheckerCallback(const ros::TimerEvent& event){
             case State::OPEN_END_EFFECTOR:{
                
                 // havent received a response yet
-                // this->ee_response = -1;
-                this->ee_response = 1;
+                this->ee_response = -1;
                 this->harvest_req.data = stateToInt(State::OPEN_END_EFFECTOR);
 
                 this->ee_client_pub.publish(this->harvest_req);
@@ -270,8 +269,7 @@ void PeterStateMachine::stateCheckerCallback(const ros::TimerEvent& event){
             case State::EXTRACT_PEPPER:{
                 
                 // havent received a response yet
-                // this->ee_response = -1;
-                this->ee_response = 1;
+                this->ee_response = -1;
                 this->harvest_req.data = stateToInt(State::EXTRACT_PEPPER);
               
                 this->ee_client_pub.publish(this->harvest_req);
@@ -335,8 +333,7 @@ void PeterStateMachine::stateCheckerCallback(const ros::TimerEvent& event){
 
             case State::OPEN_GRIPPER_CLOSE_EE:{
                 // havent received a response yet
-                // this->ee_response = -1;
-                this->ee_response = 1;
+                this->ee_response = -1;
                 this->harvest_req.data = stateToInt(State::OPEN_GRIPPER_CLOSE_EE);
 
                 this->ee_client_pub.publish(this->harvest_req);
@@ -361,20 +358,6 @@ void PeterStateMachine::stateCheckerCallback(const ros::TimerEvent& event){
                 break;
             }
 
-            case State::SYSTEM_RESET_CHECK_MOTORS:{
-                
-                // kill the nodes and relaunch them
-                resetArmNCamera();
-
-                // see if the motors are working by closing them when they should be closed
-                int motors_working = checkMotors();
-
-                if(!motors_working){
-                    ROS_ERROR("Motors not working during reset...attemping to reset...");
-                    this->next_state = State::FACTORY_RESET_MOTORS;
-                }     
-            }
-
             case State::FACTORY_RESET_MOTORS:{
 
                 if(!factory_reset_motors()){
@@ -383,18 +366,10 @@ void PeterStateMachine::stateCheckerCallback(const ros::TimerEvent& event){
                     this->current_state == State::FACTORY_RESET_MOTORS;
                 }
                 else{
-                    // if we came from resetting the motors we need to go back to approaching the plant positions
-                    if(this->current_state == State::SYSTEM_RESET_CHECK_MOTORS){
-                        ROS_INFO("The motors have been reset at system reset, approaching plant positions");
-                        this->next_state == State::APPROACH_PLANT_POSITIONS;
-                    }
-                    else{
-                        // if not we need to go back to the last state
-                        ROS_INFO("The motors have been reset, returning to last state");
-                        this->next_state == this->current_state;
-                        this->current_state == State::FACTORY_RESET_MOTORS;
-                    }
-
+                    // if not we need to go back to the last state
+                    ROS_INFO("The motors have been reset, returning to last state");
+                    this->next_state == this->current_state;
+                    this->current_state == State::FACTORY_RESET_MOTORS; 
                 }
 
             }         
@@ -419,7 +394,6 @@ void PeterStateMachine::stateCheckerCallback(const ros::TimerEvent& event){
                break;
             }
 
-    
             default:
                 break;
 
@@ -459,75 +433,6 @@ this->ee_response = rsp.data;
 
 }
 
-void PeterStateMachine::resetArmNCamera(){
-
-    std::vector<std::string> nodes = {
-        "camera_node",
-        "/my_gen3/joint_state_publisher",
-        "/my_gen3/move_group",
-        "/my_gen3/my_gen3_driver",
-        "/my_gen3/robot_state_publisher",
-        "/my_gen3/rviz/"
-    };
-    
-    // kill all the nodes in the list
-    for(int i = 0; i < nodes.size(); i++){
-        ROS_INFO_STREAM("Killing " + nodes[i] + "node...");
-        std::string command = "rosnode kill" + nodes[i];
-        system(command.c_str());
-    }
-
-    // launch it again
-    ROS_INFO("Launching: pepper_ws kinova_real.launch ");
-    std::string command = "roslaunch pepper_ws kinova_real.launch";
-    system(command.c_str());
-
-}
-
-int PeterStateMachine::checkMotors(){
-
-    // no response from the end_effector yet
-    this->ee_response = -1;
-
-    // confirms if both motors are operational- assume yes
-    int operational = 1;
-
-    // ================== try to make the gripper close=============== 
-    this->harvest_req.data = 24; // 24 closes the gripper
-
-    this->ee_client_pub.publish(this->harvest_req);
-    ros::Duration(0.25).sleep();
-    ros::spinOnce(); //! MAY BE A TERRIBLE IDEA
-                    
-    // process the response
-    if(!this->ee_response){
-        // if the response is not 1 (success) we need to return not operational
-        operational = 0;
-    }
-
-     // ================== try to make the gripper close=============== 
-
-    // ================== try to make the cutter close=============== 
-
-    // change the ee_response again for the new message
-    this->ee_response = -1;
-
-    this->harvest_req.data = 25; // 25 closes the cutter
-
-    this->ee_client_pub.publish(this->harvest_req);
-    ros::Duration(0.25).sleep();
-    ros::spinOnce(); //! MAY BE A TERRIBLE IDEA
-                    
-    // process the response
-    if(!this->ee_response){
-        // if the response is not 1 (success) we need to return not operational
-        operational = 0;
-    }
-
-    // ================== try to make the cutter close=============== 
-
-    return operational;
-}
 
 int PeterStateMachine::factory_reset_motors(){
 
@@ -592,8 +497,6 @@ std::string PeterStateMachine::stateToString(State state){
             return "Manual Intervention";
         case State::VISUAL_SERVOING:
             return "Visual Servoing";
-        case State::SYSTEM_RESET_CHECK_MOTORS:
-            return "Resetting the Arm & Checking Motor Operation";
         case State::FACTORY_RESET_MOTORS:
             return "Factory Reset Motors";
         default:
