@@ -1,5 +1,58 @@
 #include "../include/state_machine.h"
 
+
+namespace pc
+{
+  enum PRINT_COLOR
+  {
+    BLACK,
+    RED,
+    GREEN,
+    YELLOW,
+    BLUE,
+    MAGENTA,
+    CYAN,
+    WHITE,
+    ENDCOLOR
+  };
+
+  std::ostream& operator<<(std::ostream& os, PRINT_COLOR c)
+  {
+    switch(c)
+    {
+      case BLACK    : os << "\033[1;30m"; break;
+      case RED      : os << "\033[1;31m"; break;
+      case GREEN    : os << "\033[1;32m"; break;
+      case YELLOW   : os << "\033[1;33m"; break;
+      case BLUE     : os << "\033[1;34m"; break;
+      case MAGENTA  : os << "\033[1;35m"; break;
+      case CYAN     : os << "\033[1;36m"; break;
+      case WHITE    : os << "\033[1;37m"; break;
+      case ENDCOLOR : os << "\033[0m";    break;
+      default       : os << "\033[1;37m";
+    }
+    return os;
+  }
+} //namespace pc
+
+#define ROS_BLACK_STREAM(x)   ROS_INFO_STREAM(pc::BLACK   << x << pc::ENDCOLOR)
+#define ROS_RED_STREAM(x)     ROS_INFO_STREAM(pc::RED     << x << pc::ENDCOLOR)
+#define ROS_GREEN_STREAM(x)   ROS_INFO_STREAM(pc::GREEN   << x << pc::ENDCOLOR)
+#define ROS_YELLOW_STREAM(x)  ROS_INFO_STREAM(pc::YELLOW  << x << pc::ENDCOLOR)
+#define ROS_BLUE_STREAM(x)    ROS_INFO_STREAM(pc::BLUE    << x << pc::ENDCOLOR)
+#define ROS_MAGENTA_STREAM(x) ROS_INFO_STREAM(pc::MAGENTA << x << pc::ENDCOLOR)
+#define ROS_CYAN_STREAM(x)    ROS_INFO_STREAM(pc::CYAN    << x << pc::ENDCOLOR)
+
+#define ROS_BLACK_STREAM_COND(c, x)   ROS_INFO_STREAM_COND(c, pc::BLACK   << x << pc::ENDCOLOR)
+#define ROS_RED_STREAM_COND(c, x)     ROS_INFO_STREAM_COND(c, pc::RED     << x << pc::ENDCOLOR)
+#define ROS_GREEN_STREAM_COND(c, x)   ROS_INFO_STREAM_COND(c, pc::GREEN   << x << pc::ENDCOLOR)
+#define ROS_YELLOW_STREAM_COND(c, x)  ROS_INFO_STREAM_COND(c, pc::YELLOW  << x << pc::ENDCOLOR)
+#define ROS_BLUE_STREAM_COND(c, x)    ROS_INFO_STREAM_COND(c, pc::BLUE    << x << pc::ENDCOLOR)
+#define ROS_MAGENTA_STREAM_COND(c, x) ROS_INFO_STREAM_COND(c, pc::MAGENTA << x << pc::ENDCOLOR)
+#define ROS_CYAN_STREAM_COND(c, x)    ROS_INFO_STREAM_COND(c, pc::CYAN    << x << pc::ENDCOLOR)
+
+
+
 PeterStateMachine::PeterStateMachine(){
     // create all the clients, pubs, subs
     this->manipulation_client = this->PeterNode.serviceClient<system_ws::harvest>("/manipulation/harvest");
@@ -167,9 +220,9 @@ void PeterStateMachine::stateCheckerCallback(const ros::TimerEvent& event){
             }
 
             case State::OPEN_END_EFFECTOR:{
-               
+            
                 // havent received a response yet
-                this->ee_response = -1;
+                this->ee_response = 1; //CHANGE
                 this->harvest_req.data = stateToInt(State::OPEN_END_EFFECTOR);
 
                 this->ee_client_pub.publish(this->harvest_req);
@@ -188,7 +241,8 @@ void PeterStateMachine::stateCheckerCallback(const ros::TimerEvent& event){
                     printTransitionFailure(this->current_state, this->next_state);
                     ROS_ERROR("Motors not working...attempt to factory reset motors");
                     this->current_state = State::OPEN_END_EFFECTOR;
-                    this->next_state = State::FACTORY_RESET_MOTORS;
+                    // this->next_state = State::FACTORY_RESET_MOTORS; CHANGE
+                    this->next_state = State::MANUAL_INTERVENTION;
                 }
                                 
                 break;
@@ -205,7 +259,7 @@ void PeterStateMachine::stateCheckerCallback(const ros::TimerEvent& event){
                     int success = harvest_srv.response.reply;
 
                     //! CHANGE THIS -> THIS IS TO SKIP VISUAL SERVOING AND GO TO POI
-                    success = 0;
+                    // success = 0;
                     
                     if(success){
                         // if the response was good, you can extract the pepper
@@ -218,7 +272,7 @@ void PeterStateMachine::stateCheckerCallback(const ros::TimerEvent& event){
                         printTransitionFailure(this->current_state, this->next_state);
                         ROS_INFO("Attempting to move to POI without Visual Servoing...");
                         this->current_state = State::VISUAL_SERVOING;
-                        this->next_state = State::MOVE_2_POI;
+                        this->next_state = State::CREATE_OBS_MOVE_2_PREGRASP;
                     }
                 }
                 else{
@@ -269,7 +323,7 @@ void PeterStateMachine::stateCheckerCallback(const ros::TimerEvent& event){
             case State::EXTRACT_PEPPER:{
                 
                 // havent received a response yet
-                this->ee_response = -1;
+                this->ee_response = 1;
                 this->harvest_req.data = stateToInt(State::EXTRACT_PEPPER);
               
                 this->ee_client_pub.publish(this->harvest_req);
@@ -292,7 +346,8 @@ void PeterStateMachine::stateCheckerCallback(const ros::TimerEvent& event){
                     printTransitionFailure(this->current_state, this->next_state);
                     ROS_ERROR("Motors not working...attempt to factory reset motors");
                     this->current_state = State::EXTRACT_PEPPER;
-                    this->next_state = State::FACTORY_RESET_MOTORS;
+                    // this->next_state = State::FACTORY_RESET_MOTORS; CHANGE
+                    this->next_state = State::MANUAL_INTERVENTION;
                 }
                                 
                 break;
@@ -333,7 +388,7 @@ void PeterStateMachine::stateCheckerCallback(const ros::TimerEvent& event){
 
             case State::OPEN_GRIPPER_CLOSE_EE:{
                 // havent received a response yet
-                this->ee_response = -1;
+                this->ee_response = 1; //CHANGE
                 this->harvest_req.data = stateToInt(State::OPEN_GRIPPER_CLOSE_EE);
 
                 this->ee_client_pub.publish(this->harvest_req);
@@ -352,7 +407,8 @@ void PeterStateMachine::stateCheckerCallback(const ros::TimerEvent& event){
                     printTransitionFailure(this->current_state, this->next_state);
                     ROS_ERROR("Motors not working...attempt to factory reset motors");
                     this->current_state = State::OPEN_GRIPPER_CLOSE_EE;
-                    this->next_state = State::FACTORY_RESET_MOTORS;
+                    // this->next_state = State::FACTORY_RESET_MOTORS; CHANGE
+                    this->next_state = State::MANUAL_INTERVENTION;
                 }
                                 
                 break;
@@ -371,6 +427,8 @@ void PeterStateMachine::stateCheckerCallback(const ros::TimerEvent& event){
                     this->next_state == this->current_state;
                     this->current_state == State::FACTORY_RESET_MOTORS; 
                 }
+
+                break;
 
             }         
 
@@ -406,7 +464,8 @@ void PeterStateMachine::stateCheckerCallback(const ros::TimerEvent& event){
 void PeterStateMachine::printTransitionSuccess(State current_state, State next_state){
 
     // print the starting state and the next state
-    ROS_INFO("Successful transition from %s to %s", stateToString(current_state).c_str(), stateToString(next_state).c_str());
+    ROS_INFO_STREAM("Successful transition from " + stateToString(current_state) + " to " + stateToString(next_state));
+    ROS_GREEN_STREAM(stateToString(next_state));
 
 }
 
@@ -414,22 +473,22 @@ void PeterStateMachine::printTransitionSuccess(State current_state, State next_s
 void PeterStateMachine::printTransitionFailure(State current_state, State next_state){
 
     // print the starting state and the next state
-ROS_ERROR("Failed transition from %s to %s", stateToString(current_state).c_str(), stateToString(next_state).c_str());
+    ROS_ERROR("Failed transition from %s to %s", stateToString(current_state).c_str(), stateToString(next_state).c_str());
 }
 
 
 void PeterStateMachine::printTransition(State current_state, State next_state){
 
 // print the starting state and the next state
-ROS_INFO("Started in: %s", stateToString(current_state).c_str());
-ROS_INFO("Transitioning to: %s", stateToString(next_state).c_str());
+ROS_INFO("Current State: %s", stateToString(current_state).c_str());
+ROS_INFO("Next State: %s", stateToString(next_state).c_str());
 
 }
 
 
 void PeterStateMachine::endEffectorCallback(const std_msgs::Int16& rsp){
 
-this->ee_response = rsp.data;  
+    this->ee_response = rsp.data;  
 
 }
 
@@ -450,8 +509,9 @@ int PeterStateMachine::factory_reset_motors(){
     ros::spinOnce(); //! MAY BE A TERRIBLE IDEA
                     
     // process the response
-    if(!this->ee_response){
+    if(this->ee_response != 1){
         // if the response is not 1 (success) we need to return not a failed factory reset
+        ROS_ERROR("Motors not reset!");
         success = 0;
     }
 
