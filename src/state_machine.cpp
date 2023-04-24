@@ -80,7 +80,7 @@ void PeterStateMachine::stateCheckerCallback(const ros::TimerEvent& event){
                         // if the response was good, need to multiframe
                         printTransitionSuccess(this->current_state, this->next_state);
                         this->current_state = State::APPROACH_PLANT_POSITIONS;
-                        this->next_state = State::MULTIFRAME;
+                        this->next_state = State::MULTIFRAME_PERCEP;
                     }
                     else{
                         // if it failed, no peppers were detected, and you are done!
@@ -99,27 +99,93 @@ void PeterStateMachine::stateCheckerCallback(const ros::TimerEvent& event){
                 break;
             }
             
-            case State::MULTIFRAME:{
+            case State::MULTIFRAME_MANIP:{
 
-                harvest_srv.request.req_id = stateToInt(State::MULTIFRAME);
+                harvest_srv.request.req_id = stateToInt(State::MULTIFRAME_MANIP);
                 
                 if(manipulation_client.call(harvest_srv)){
 
                     // you got a response
-                    ROS_INFO("Received Response From: %s", stateToString(State::MULTIFRAME).c_str());
+                    ROS_INFO("Received Response From: %s", stateToString(State::MULTIFRAME_MANIP).c_str());
                     int success = harvest_srv.response.reply;
                     
                     if(success){
-                        // if the response was good, need to create peppers obs & move to pregrasp
-                        ROS_INFO("Pepper detected!");
+                        // if the response was good, we performed the move and need to find the pep
+                        ROS_INFO("Proceed to perceiving a pepper!");
                         printTransitionSuccess(this->current_state, this->next_state);
-                        this->current_state = State::MULTIFRAME;
+                        this->current_state = State::MULTIFRAME_MANIP;
+                        this->next_state = State::MULTIFRAME_PERCEP;
+                    }
+                    else{
+                        // if it failed, no more moves are required and we need to find the poi
+                        ROS_INFO("No more multiframes...find the POI");
+                        this->current_state = State::MULTIFRAME_MANIP;
+                        this->next_state = State::FIND_POI;
+                    }
+                }
+                else{
+                    // you didnt get a response, so you should try to do this again: 
+                    // dont change the current and next states
+                    ROS_ERROR("No reponse received.");
+                    printTransitionFailure(this->current_state, this->next_state);
+                }
+                
+                break;
+            }
+
+            case State::MULTIFRAME_PERCEP:{
+
+                harvest_srv.request.req_id = 0;
+                
+                if(perception_client.call(harvest_srv)){
+
+                    // you got a response
+                    ROS_INFO("Received Response From: %s", stateToString(State::MULTIFRAME_PERCEP).c_str());
+                    int success = harvest_srv.response.reply;
+                    
+                    if(success){
+                        // if the response was good, we performed yolo
+                        ROS_INFO("YOLO Performed!");
+                        printTransitionSuccess(this->current_state, this->next_state);
+                        this->current_state = State::MULTIFRAME_PERCEP;
+                        this->next_state = State::MULTIFRAME_MANIP;
+                    }
+                    else{
+                        // this should never fail
+                        ROS_INFO("Something is wrong...");
+                    }
+                }
+                else{
+                    // you didnt get a response, so you should try to do this again: 
+                    // dont change the current and next states
+                    ROS_ERROR("No reponse received.");
+                    printTransitionFailure(this->current_state, this->next_state);
+                }
+                
+                break;
+            }
+
+            case State::FIND_POI:{
+
+                harvest_srv.request.req_id = 1;
+                
+                if(perception_client.call(harvest_srv)){
+
+                    // you got a response
+                    ROS_INFO("Received Response From: %s", stateToString(State::FIND_POI).c_str());
+                    int success = harvest_srv.response.reply;
+                    
+                    if(success){
+                        // if the response was good, we found the poi and need to move to it
+                        ROS_INFO("POI found! Aprroaching ");
+                        printTransitionSuccess(this->current_state, this->next_state);
+                        this->current_state = State::FIND_POI;
                         this->next_state = State::CREATE_OBS_MOVE_2_PREGRASP;
                     }
                     else{
-                        // if it failed, no peppers were detected, need to approach another pos 
-                        ROS_INFO("No peppers detected! Approaching another position...");
-                        this->current_state = State::MULTIFRAME;
+                        // with no poi, we found no peppers and need to move to the next approach position
+                        ROS_INFO("No more peppers found...approaching the next position...");
+                        this->current_state = State::FIND_POI;
                         this->next_state = State::APPROACH_PLANT_POSITIONS;
                     }
                 }
@@ -152,7 +218,7 @@ void PeterStateMachine::stateCheckerCallback(const ros::TimerEvent& event){
                     else{
                         // if it failed, need to go to approach positions again
                         printTransitionFailure(this->current_state, this->next_state);
-                        this->current_state = State::MULTIFRAME;
+                        this->current_state = State::CREATE_OBS_MOVE_2_PREGRASP;
                         this->next_state = State::APPROACH_PLANT_POSITIONS;
                     }
                 }
@@ -479,8 +545,8 @@ std::string PeterStateMachine::stateToString(State state){
             return "Move to Reset Pose";
         case State::APPROACH_PLANT_POSITIONS:
             return "Approach Plant Positions";
-        case State::MULTIFRAME:
-            return "Use Multiframe Pepper Detection";
+        case State::MULTIFRAME_MANIP:
+            return "Manipulation Multiframe Moves";
         case State::CREATE_OBS_MOVE_2_PREGRASP:
             return "Create Pepper Obstacles & Move to Pre-Grasp Pose";
         case State::OPEN_END_EFFECTOR:
@@ -499,6 +565,10 @@ std::string PeterStateMachine::stateToString(State state){
             return "Visual Servoing";
         case State::FACTORY_RESET_MOTORS:
             return "Factory Reset Motors";
+        case State::MULTIFRAME_PERCEP:
+            return "Perform Multiframe Processing of an Image";
+        case State::FIND_POI:
+            return "Use Perception to Find POI";
         default:
             return "FAILED";
     }
