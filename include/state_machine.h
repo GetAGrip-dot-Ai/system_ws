@@ -20,7 +20,8 @@ enum State{
     FACTORY_RESET_MOTORS, // state 11
     END_STATE, // state 12
     MULTIFRAME_PERCEP, // state 13
-    FIND_POI
+    FIND_POI, // state 14
+    INCREMENT_APPROACH_POS // state 15
    };
 
 
