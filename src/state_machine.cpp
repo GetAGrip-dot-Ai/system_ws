@@ -239,7 +239,7 @@ void PeterStateMachine::stateCheckerCallback(const ros::TimerEvent& event){
                         // with no poi, we found no peppers and need to move to the next approach position
                         ROS_INFO("No more peppers found...approaching the next position...");
                         this->current_state = State::FIND_POI;
-                        this->next_state = State::APPROACH_PLANT_POSITIONS;
+                        this->next_state = State::INCREMENT_APPROACH_POS;
                     }
                 }
                 else{
@@ -373,6 +373,39 @@ void PeterStateMachine::stateCheckerCallback(const ros::TimerEvent& event){
                         printTransitionFailure(this->current_state, this->next_state);
                         this->current_state = State::VISUAL_SERVOING;
                         this->next_state = State::CREATE_OBS_MOVE_2_PREGRASP;
+                    }
+                }
+                else{
+                    // you didnt get a response, so you should try to do this again: 
+                    // dont change the current and next states
+                    ROS_ERROR("No reponse received.");
+                    printTransitionFailure(this->current_state, this->next_state);
+                }
+                
+                break;
+
+            }
+
+            case State::INCREMENT_APPROACH_POS:{
+                
+                harvest_srv.request.req_id = stateToInt(State::INCREMENT_APPROACH_POS);
+                
+                if(manipulation_client.call(harvest_srv)){
+
+                    // you got a response
+                    ROS_INFO("Received Response From: %s", stateToString(State::INCREMENT_APPROACH_POS).c_str());
+                    int success = harvest_srv.response.reply;
+                    
+                    if(success){
+                        // if the response was good, extract the pepper
+                        printTransitionSuccess(this->current_state, this->next_state);
+                        this->current_state = State::INCREMENT_APPROACH_POS;
+                        this->next_state = State::APPROACH_PLANT_POSITIONS;
+                    }
+                    else{
+                        // if it failed, you never moved to the poi and need to move
+                        // back to creating pep obs & moving to pregrasp
+                        ROS_ERROR("Something bad happened...")
                     }
                 }
                 else{
