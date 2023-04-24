@@ -8,7 +8,7 @@
 enum State{
     MOVE_2_RESET_POSE, // state 0
     APPROACH_PLANT_POSITIONS, // state 1
-    MULTIFRAME, // state 2
+    MULTIFRAME_MANIP, // state 2
     CREATE_OBS_MOVE_2_PREGRASP, // state 3
     OPEN_END_EFFECTOR, // state 4
     MOVE_2_POI, // state 5
@@ -18,7 +18,9 @@ enum State{
     MANUAL_INTERVENTION, // state 9
     VISUAL_SERVOING, // state 10
     FACTORY_RESET_MOTORS, // state 11
-    END_STATE // state 12
+    END_STATE, // state 12
+    MULTIFRAME_PERCEP, // state 13
+    FIND_POI
    };
 
 
