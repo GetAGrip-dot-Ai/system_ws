@@ -1,3 +1,12 @@
+
+/*
+CMU MRSD Program: Course 16-681
+Team Name: GetAGrip.AI
+Team Members: Alec Trela, Jiyoon Park, Sridevi Kaza, Solomon Fenton, & Shri Ishwarya S V
+Rev0: Mar. 24, 2023
+Code Description: FSM that controls Peter
+*/
+
 #include "../include/state_machine.h"
 
 
