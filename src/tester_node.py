@@ -27,7 +27,7 @@ class Nodo:
     def start(self):
         while not rospy.is_shutdown():
 
-            self.ee_pub.publish(1) # always publish success
+            self.ee_pub.publish(random.randint(-1,1)) # always publish success
             self.loop_rate.sleep()
 
 if __name__ == '__main__':
