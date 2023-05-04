@@ -1,6 +1,6 @@
 # Peter FSM
 
-[flowchart]()
+![flowchart](https://github.com/artrela/system_ws/blob/master/Resources/fsm-flowchart.png)
 
 *All movements of the finite-state machine and the particular error handling is described below*
 
