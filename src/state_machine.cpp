@@ -405,7 +405,7 @@ void PeterStateMachine::stateCheckerCallback(const ros::TimerEvent& event){
                     else{
                         // if it failed, you never moved to the poi and need to move
                         // back to creating pep obs & moving to pregrasp
-                        ROS_ERROR("Something bad happened...")
+                        ROS_ERROR("Something bad happened...");
                     }
                 }
                 else{
@@ -662,6 +662,8 @@ std::string PeterStateMachine::stateToString(State state){
             return "Perform Multiframe Processing of an Image";
         case State::FIND_POI:
             return "Use Perception to Find POI";
+        case State::INCREMENT_APPROACH_POS:
+            return "Incrementing Approach Position";
         default:
             return "FAILED";
     }
